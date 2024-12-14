@@ -6,7 +6,7 @@ import java.util.List;
 
 import static net.kremianskii.roots.AggregateVersion.newVersion;
 import static net.kremianskii.roots.AggregateVersion.savedVersion;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregateVersionTests {
     @Test
@@ -21,7 +21,7 @@ class AggregateVersionTests {
         var advanced = version.advance(List.of(event2));
 
         // then
-        assertEquals(new AggregateVersion<>(2, List.of(event1, event2), null), advanced);
+        assertThat(advanced).isEqualTo(new AggregateVersion<>(2, List.of(event1, event2), null));
     }
 
     @Test
@@ -34,7 +34,7 @@ class AggregateVersionTests {
         var advanced = version.advance(List.of(event));
 
         // then
-        assertEquals(new AggregateVersion<>(2, List.of(event), 1), advanced);
+        assertThat(advanced).isEqualTo(new AggregateVersion<>(2, List.of(event), 1));
     }
 
     private static final class TestAggregateId extends AggregateId<Long> {

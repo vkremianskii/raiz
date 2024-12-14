@@ -1,5 +1,6 @@
 package net.kremianskii.roots.jooq;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.kremianskii.roots.Aggregate;
 import net.kremianskii.roots.AggregateEvent;
 import net.kremianskii.roots.AggregateId;
@@ -12,6 +13,7 @@ import org.jooq.Table;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +24,7 @@ import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_AGGREGATE_ID
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_DATA;
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_TIMESTAMP;
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_TYPE;
+import static net.kremianskii.roots.jooq.Json.jsonStringFromValue;
 
 public abstract class JooqAggregateRepository<
         IDV,
@@ -88,7 +91,7 @@ public abstract class JooqAggregateRepository<
                 .columns(EVENT_AGGREGATE_ID, EVENT_TYPE, EVENT_DATA, EVENT_TIMESTAMP)
                 .values(event.aggregateId.toString(),
                         event.getClass().getSimpleName(),
-                        null,
+                        jsonStringFromValue(event),
                         Timestamp.from(clock.instant()))
                 .execute();
     }
@@ -96,4 +99,28 @@ public abstract class JooqAggregateRepository<
     protected abstract void insert(DSLContext dsl, AG aggregate);
 
     protected abstract int update(DSLContext dsl, AG aggregate);
+
+    public List<PersistedAggregateEvent> findAllEvents(ID aggregateId) {
+        return dsl.select(EVENT.asterisk())
+                .from(EVENT)
+                .where(EVENT_AGGREGATE_ID.eq(aggregateId.toString()))
+                .fetch(this::eventFromRecord);
+    }
+
+    private PersistedAggregateEvent eventFromRecord(Record record) {
+        return new PersistedAggregateEvent(
+                record.get(EVENT_AGGREGATE_ID),
+                record.get(EVENT_TYPE),
+                (ObjectNode) Json.treeFromJsonString(record.get(EVENT_DATA)),
+                record.get(EVENT_TIMESTAMP).toInstant()
+        );
+    }
+
+    public record PersistedAggregateEvent(
+            String aggregateId,
+            String type,
+            ObjectNode data,
+            Instant timestamp
+    ) {
+    }
 }

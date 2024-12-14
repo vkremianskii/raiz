@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Timestamp;
 import java.time.Clock;
-import java.util.List;
 import java.util.UUID;
 
 import static java.time.Instant.EPOCH;
@@ -28,11 +27,11 @@ import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_AGGREGATE_ID
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_DATA;
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_TIMESTAMP;
 import static net.kremianskii.roots.jooq.EventsDatabaseSchema.EVENT_TYPE;
+import static net.kremianskii.roots.jooq.Json.jsonStringFromValue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.jooq.impl.DSL.field;
 import static org.jooq.impl.DSL.table;
 import static org.jooq.impl.SQLDataType.INTEGER;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class JooqAggregateRepositoryTests {
     private static final Table<?> TEST_AGGREGATE = table("TEST_AGGREGATE");
@@ -57,7 +56,8 @@ class JooqAggregateRepositoryTests {
     void insertsEventsOnSave() {
         // given
         var aggregateId = new TestAggregateId(randomUUID());
-        var aggregate = new TestAggregate(aggregateId, newVersion(new TestAggregateEvent(aggregateId)));
+        var aggregateEvent = new TestAggregateEvent(aggregateId);
+        var aggregate = new TestAggregate(aggregateId, newVersion(aggregateEvent));
 
         // when
         subj.save(aggregate);
@@ -67,10 +67,12 @@ class JooqAggregateRepositoryTests {
                 .from(EVENT)
                 .where(EVENT_AGGREGATE_ID.eq(aggregate.id.toString()))
                 .fetch();
-        assertEquals(1, events.size());
-        assertEquals(TestAggregateEvent.class.getSimpleName(), events.get(0).get(EVENT_TYPE));
-        assertNull(events.get(0).get(EVENT_DATA));
-        assertEquals(Timestamp.from(EPOCH), events.get(0).get(EVENT_TIMESTAMP));
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0)).satisfies(event -> {
+            assertThat(event.get(EVENT_TYPE)).isEqualTo(TestAggregateEvent.class.getSimpleName());
+            assertThat(event.get(EVENT_DATA)).isEqualTo(jsonStringFromValue(aggregateEvent));
+            assertThat(event.get(EVENT_TIMESTAMP)).isEqualTo(Timestamp.from(EPOCH));
+        });
     }
 
     private static final class TestAggregateRepository
@@ -88,7 +90,6 @@ class JooqAggregateRepositoryTests {
 
         @Override
         protected void insert(DSLContext dsl, TestAggregate aggregate) {
-
         }
 
         @Override
@@ -100,10 +101,6 @@ class JooqAggregateRepositoryTests {
     private static final class TestAggregate extends Aggregate<TestAggregateId, TestAggregateEvent> {
         TestAggregate(TestAggregateId id, AggregateVersion<TestAggregateId, TestAggregateEvent> version) {
             super(id, version);
-        }
-
-        TestAggregate update(List<TestAggregateEvent> events) {
-            return new TestAggregate(id, version.advance(events));
         }
     }
 

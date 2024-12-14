@@ -28,7 +28,7 @@ public final class Account extends Aggregate<AccountId, AccountEvent> {
         requirePositive("amount", amount);
         return update(
                 balance + amount,
-                new BalanceChanged(id, balance, balance + amount));
+                new BalanceChanged(id, balance + amount, balance));
     }
 
     public Account withdraw(int amount) {
@@ -36,7 +36,7 @@ public final class Account extends Aggregate<AccountId, AccountEvent> {
         check(amount <= balance, () -> "amount [%d] must not exceed balance [%d]".formatted(amount, balance));
         return update(
                 balance - amount,
-                new BalanceChanged(id, balance, balance - amount));
+                new BalanceChanged(id, balance - amount, balance));
     }
 
     public Account update(int balance, AccountEvent event) {

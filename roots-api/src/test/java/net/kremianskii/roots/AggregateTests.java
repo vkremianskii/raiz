@@ -4,8 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class AggregateTests {
     @Test
@@ -13,8 +12,8 @@ class AggregateTests {
         var subj = new TestAggregate(
                 new TestAggregateId(1),
                 new AggregateVersion<>(1, List.of(), 1));
-        assertFalse(subj.isNew());
-        assertFalse(subj.isDirty());
+        assertThat(subj.isNew()).isFalse();
+        assertThat(subj.isDirty()).isFalse();
     }
 
     @Test
@@ -22,8 +21,8 @@ class AggregateTests {
         var subj = new TestAggregate(
                 new TestAggregateId(1),
                 new AggregateVersion<>(1, List.of(), null));
-        assertTrue(subj.isNew());
-        assertTrue(subj.isDirty());
+        assertThat(subj.isNew()).isTrue();
+        assertThat(subj.isDirty()).isTrue();
     }
 
     @Test
@@ -31,8 +30,8 @@ class AggregateTests {
         var subj = new TestAggregate(
                 new TestAggregateId(1),
                 new AggregateVersion<>(2, List.of(), 1));
-        assertFalse(subj.isNew());
-        assertTrue(subj.isDirty());
+        assertThat(subj.isNew()).isFalse();
+        assertThat(subj.isDirty()).isTrue();
     }
 
     private static final class TestAggregate extends Aggregate<TestAggregateId, TestAggregateEvent> {

@@ -6,8 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -29,11 +28,16 @@ class LedgerControllerTests {
 
         // then
         verify(accountRepo).saveAll(assertArg(accounts -> {
-            assertEquals(2, accounts.size());
-            assertSame(from.id, ((List<Account>) accounts).get(0).id);
-            assertEquals(0, ((List<Account>) accounts).get(0).balance);
-            assertEquals(to.id, ((List<Account>) accounts).get(1).id);
-            assertEquals(100, ((List<Account>) accounts).get(1).balance);
+            var accountsList = accounts.stream().toList();
+            assertThat(accountsList).hasSize(2);
+            assertThat(accountsList.get(0)).satisfies(account -> {
+                assertThat(account.id).isEqualTo(from.id);
+                assertThat(account.balance).isEqualTo(0);
+            });
+            assertThat(accountsList.get(1)).satisfies(account -> {
+                assertThat(account.id).isEqualTo(to.id);
+                assertThat(account.balance).isEqualTo(100);
+            });
         }));
     }
 }

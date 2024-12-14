@@ -2,15 +2,14 @@ package net.kremianskii.roots.exampleservice;
 
 import net.kremianskii.roots.OptimisticLockingException;
 import net.kremianskii.roots.jooq.EventsDatabaseSchema;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.jooq.DSLContext;
 import org.jooq.exception.IntegrityConstraintViolationException;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -19,9 +18,8 @@ import static java.time.Instant.EPOCH;
 import static java.time.ZoneOffset.UTC;
 import static net.kremianskii.roots.AggregateVersion.savedVersion;
 import static net.kremianskii.roots.exampleservice.AccountId.accountId;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AccountRepositoryTests {
     private final Clock clock = Clock.fixed(EPOCH, UTC);
@@ -44,25 +42,31 @@ class AccountRepositoryTests {
             var found = subj.findAll(Set.of(account1Id, account2Id));
 
             // then
-            assertEquals(2, found.size());
-            assertEquals(account1Id, found.get(0).id);
-            assertEquals(0, found.get(0).balance);
-            assertEquals(savedVersion(1), found.get(0).version);
-            assertEquals(account2Id, found.get(1).id);
-            assertEquals(100, found.get(1).balance);
-            assertEquals(savedVersion(1), found.get(1).version);
+            assertThat(found).hasSize(2);
+            assertThat(found.get(0)).satisfies(account -> {
+                assertThat(account.id).isEqualTo(account1Id);
+                assertThat(account.balance).isEqualTo(0);
+                assertThat(account.version).isEqualTo(savedVersion(1));
+            });
+            assertThat(found.get(1)).satisfies(account -> {
+                assertThat(account.id).isEqualTo(account2Id);
+                assertThat(account.balance).isEqualTo(100);
+                assertThat(account.version).isEqualTo(savedVersion(1));
+            });
         }
         {
             // when
-            var account = subj.get(account1Id);
-            subj.save(account.deposit(100));
+            var account1 = subj.get(account1Id);
+            subj.save(account1.deposit(100));
             var found = subj.find(account1Id);
 
             // then
-            assertTrue(found.isPresent());
-            assertEquals(account1Id, found.get().id);
-            assertEquals(100, found.get().balance);
-            assertEquals(savedVersion(2), found.get().version);
+            assertThat(found).isPresent();
+            assertThat(found.get()).satisfies(account -> {
+                assertThat(account.id).isEqualTo(account1Id);
+                assertThat(account.balance).isEqualTo(100);
+                assertThat(account.version).isEqualTo(savedVersion(2));
+            });
         }
     }
 
@@ -74,19 +78,20 @@ class AccountRepositoryTests {
         var account3 = new Account(account2.id, 0);
 
         // when
-        Executable save = () -> subj.saveAll(List.of(account1, account2, account3));
+        ThrowingCallable save = () -> subj.saveAll(List.of(account1, account2, account3));
         var found = subj.findAll(Set.of(account1.id, account2.id));
 
         // then
-        assertThrows(IntegrityConstraintViolationException.class, save);
-        assertEquals(0, found.size());
+        assertThatThrownBy(save).isInstanceOf(IntegrityConstraintViolationException.class);
+        assertThat(found).isEmpty();
     }
 
     @Test
     void throwsOnInsertionConflict() {
         var account = new Account(AccountId.random(), 0);
         subj.save(account.deposit(100));
-        assertThrows(IntegrityConstraintViolationException.class, () -> subj.save(account.deposit(100)));
+        assertThatThrownBy(() -> subj.save(account.deposit(100)))
+                .isInstanceOf(IntegrityConstraintViolationException.class);
     }
 
     @Test
@@ -95,6 +100,7 @@ class AccountRepositoryTests {
         subj.save(new Account(accountId, 0));
         var account = subj.get(accountId);
         subj.save(account.deposit(100));
-        assertThrows(OptimisticLockingException.class, () -> subj.save(account.deposit(100)));
+        assertThatThrownBy(() -> subj.save(account.deposit(100)))
+                .isInstanceOf(OptimisticLockingException.class);
     }
 }
